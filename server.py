@@ -1,36 +1,39 @@
-from flask import Flask, request
-import threading
 import tkinter as tk
+import threading
+import requests
 import time
 
-app = Flask(__name__)
+def create_tkinter_window():
+    global root, timer_label
 
-root = None  # Global variable for the Tkinter root window
-def initialize_tkinter_window():
-    global root
     root = tk.Tk()
-    root.title("Bomb Overview")
+    root.title("Reference Side")
     root.geometry("300x250")
     root.configure(bg="red")
 
     label = tk.Label(root, text="DEACTIVATED", font=("Arial", 24), bg="red", fg="white")
     label.pack(pady=20)
 
-def activate_tkinter_window():
-    global root
-    if root:
-        for widget in root.winfo_children():
-            widget.destroy()
-        root.configure(bg="green")
+    timer_label = tk.Label(root, text="", font=("Arial", 20), bg="red", fg="white")
+    timer_label.pack(pady=10)
 
-        label = tk.Label(root, text="ACTIVATED", font=("Arial", 24), bg="green", fg="white")
-        label.pack(pady=20)
+    root.mainloop()
 
-        global timer_label
-        timer_label = tk.Label(root, text="03:00", font=("Arial", 20), bg="green", fg="white")
-        timer_label.pack(pady=10)
+def start_timer():
+    def countdown():
+        global root, timer_label
 
-        def countdown():
+        if root:
+            for widget in root.winfo_children():
+                widget.destroy()
+            root.configure(bg="green")
+
+            label = tk.Label(root, text="ACTIVATED", font=("Arial", 24), bg="green", fg="white")
+            label.pack(pady=20)
+
+            timer_label = tk.Label(root, text="03:00", font=("Arial", 20), bg="green", fg="white")
+            timer_label.pack(pady=10)
+
             time_left = 180  # 3 minutes in seconds
             while time_left > 0:
                 minutes, seconds = divmod(time_left, 60)
@@ -39,11 +42,9 @@ def activate_tkinter_window():
                 time_left -= 1
             timer_label.config(text="00:00")
 
-        threading.Thread(target=countdown, daemon=True).start()
+    threading.Thread(target=countdown, daemon=True).start()
 
-        root.update()
-
-def deactivate_tkinter_window():
+def deactivate():
     global root
     if root:
         for widget in root.winfo_children():
@@ -55,20 +56,18 @@ def deactivate_tkinter_window():
 
         root.update()
 
-@app.route("/activate", methods=["GET"])
-def activate():
-    threading.Thread(target=activate_tkinter_window, daemon=True).start()
-    return {"status": "Tkinter window activated"}, 200
-
-@app.route("/deactivate", methods=["GET"])
-def deactivate():
-    threading.Thread(target=deactivate_tkinter_window, daemon=True).start()
-    return {"status": "Tkinter window deactivated"}, 200
-
-def run_flask():
-    app.run(debug=True, use_reloader=False)
+def listen_to_flask():
+    while True:
+        try:
+            response = requests.get("http://localhost:5000/status").json()
+            if response.get("action") == "start_timer":
+                start_timer()
+            elif response.get("action") == "deactivate":
+                deactivate()
+        except Exception as e:
+            print("Error connecting to Flask backend:", e)
+        time.sleep(1)
 
 if __name__ == "__main__":
-    initialize_tkinter_window()
-    threading.Thread(target=run_flask, daemon=True).start()
-    root.mainloop()
+    threading.Thread(target=create_tkinter_window, daemon=True).start()
+    threading.Thread(target=listen_to_flask, daemon=True).start()

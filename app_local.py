@@ -3,7 +3,6 @@ import random
 from tkinter import messagebox
 import time
 import pygame  # For audio playback
-import requests
 
 activation_mode = True  # Start in activation phase
 deactivation_mode = False  # Track deactivation phase
@@ -12,8 +11,6 @@ countdown_job = None  # To track the countdown job
 
 # Initialize pygame mixer for audio playback
 pygame.mixer.init()
-
-FLASK_SERVER_URL = "http://localhost:5000"  # Replace with the actual Flask backend URL
 
 def play_audio(file_path):
     """Plays an audio file."""
@@ -47,21 +44,16 @@ def check_number():
             messagebox.showinfo("Success", "BOMB HAS BEEN ARMED.")
             activation_mode = False
             deactivation_mode = True
-            try:
-                requests.post(f"{FLASK_SERVER_URL}/start_timer")
-            except requests.exceptions.RequestException as e:
-                messagebox.showerror("Error", f"Failed to notify backend: {e}")
             start_deactivation_timer()
         else:
             successful_deactivation_attempts += 1
             if successful_deactivation_attempts == 2:
-                try:
-                    requests.post(f"{FLASK_SERVER_URL}/deactivate")
-                except requests.exceptions.RequestException as e:
-                    messagebox.showerror("Error", f"Failed to notify backend: {e}")
                 show_restart_screen()
             else:
-                messagebox.showinfo("Success", f"COMPLETED DEACTIVATION SEQUENCE STAGE {successful_deactivation_attempts}. {2 - successful_deactivation_attempts} STAGE LEFT.")
+                messagebox.showinfo(
+                    "Success",
+                    f"COMPLETED DEACTIVATION SEQUENCE STAGE {successful_deactivation_attempts}. {2 - successful_deactivation_attempts} STAGE LEFT.",
+                )
     else:
         messagebox.showerror("Error", "Incorrect. Try again.")
 
